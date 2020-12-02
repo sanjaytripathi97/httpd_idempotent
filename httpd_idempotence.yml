@@ -1,0 +1,66 @@
+- hosts: all
+  vars_files:
+    - httpd_vars.yml
+  tasks:
+   - name: creating directory
+     file:
+      state: directory
+      path: "{{ dvd_dir }}"
+ 
+   - name: mounting the dvd
+     mount:
+      src: /dev/cdrom
+      path: "{{ dvd_dir }}"
+      state: mounted
+      fstype: "iso9660"
+
+   - name: creating yum 1
+     yum_repository:
+       baseurl: "{{ dvd_dir }}/AppStream/"
+       name: "dvd1"
+       description: "myyum package 1"
+       gpgcheck: no
+
+   - name: creating yum 2
+     yum_repository:
+       baseurl: "{{ dvd_dir }}/BaseOS/"
+       name: "dvd2"
+       description: "myyum package 2"
+       gpgcheck: no
+
+   - name: install httpd package
+     package:
+       name: "httpd"
+       state: "present"
+
+   - name: creating directory
+     file:
+      state: directory
+      path: "{{ docroot }}"
+
+   - name: copy web pages
+     copy:
+       dest: "{{ docroot }}/index.html"
+       content: "this is my web site\n"
+
+   - name: copy conf file
+     template:
+       src: lw1.conf
+       dest: /etc/httpd/conf.d/lw1.conf
+     notify: 
+       - Running httpd service
+       - Firewall rule applied
+
+  handlers:
+   - name: Running httpd service
+     service:
+       name: "httpd"
+       state: restarted
+       enabled: yes 
+
+   - name: Firewall rule applied
+     firewalld:
+       port: "{{ http_port }}/tcp"
+       state: enabled
+       permanent: yes
+       immediate: yes
